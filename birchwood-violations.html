@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Birchwood Violations">
+<meta name="theme-color" content="#1B2A3A">
+<title>Birchwood Violation Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1B2A3A; --ink-2:#33465a; --paper:#F7F5F0; --card:#FFFFFF;
+  --signal:#C8761E; --signal-soft:#F4E4CF; --resolved:#4E7A5A; --resolved-soft:#E3EDE5;
+  --alert:#B23A3A; --alert-soft:#F3DCDC; --line:#DED7C9; --line-2:#ECE7DC;
+  --muted:#6C6457; --muted-2:#7C7464; --shadow:0 1px 2px rgba(27,42,58,.06),0 8px 24px rgba(27,42,58,.06);
+  --r:14px; --r-sm:10px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Hanken Grotesk',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  background:var(--paper); color:var(--ink);
+  -webkit-font-smoothing:antialiased; line-height:1.45;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+h1,h2,h3{margin:0;font-weight:700;letter-spacing:-.01em}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:16px}
+.hidden{display:none!important}
+
+/* ---- top bar ---- */
+.topbar{
+  position:sticky;top:0;z-index:30;background:var(--ink);color:#fff;
+  padding:calc(env(safe-area-inset-top) + 12px) 18px 12px;
+  display:flex;align-items:center;gap:12px;
+}
+.topbar .mark{
+  width:34px;height:34px;border-radius:8px;flex:none;
+  background:linear-gradient(160deg,var(--signal),#a85f15);
+  display:grid;place-items:center;font-weight:800;font-size:15px;color:#fff;
+}
+.topbar h1{font-size:16px;line-height:1.1}
+.topbar .sub{font-size:11.5px;opacity:.7;font-weight:500;letter-spacing:.02em;text-transform:uppercase}
+.topbar .spacer{flex:1}
+.icon-btn{width:38px;height:38px;border-radius:9px;display:grid;place-items:center;color:#fff;opacity:.85}
+.icon-btn:active{background:rgba(255,255,255,.12)}
+
+/* ---- tab nav ---- */
+.tabs{
+  position:sticky;top:0;z-index:25;display:flex;background:var(--ink);
+  border-top:1px solid rgba(255,255,255,.08);
+}
+.tabs button{
+  flex:1;padding:11px 4px 13px;color:rgba(255,255,255,.6);font-size:12px;font-weight:600;
+  display:flex;flex-direction:column;align-items:center;gap:3px;border-top:2px solid transparent;
+}
+.tabs button.on{color:#fff;border-top-color:var(--signal)}
+.tabs svg{width:20px;height:20px}
+
+/* ---- layout ---- */
+.wrap{max-width:920px;margin:0 auto;padding:16px 16px 90px}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--signal);margin:0 0 2px}
+.muted{color:var(--muted-2)}
+.row{display:flex;gap:10px;align-items:center}
+.grow{flex:1}
+
+/* ---- search / filter bar ---- */
+.controls{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 14px}
+.search{flex:1;min-width:160px;display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 12px}
+.search input{border:none;outline:none;width:100%;background:transparent;font-size:15px}
+.search svg{width:17px;height:17px;color:var(--muted-2);flex:none}
+select.filter{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 12px;font-size:14px;color:var(--ink)}
+
+/* ---- roster ---- */
+.street-head{display:flex;align-items:baseline;gap:8px;margin:18px 2px 8px}
+.street-head h2{font-size:15px}
+.street-head .count{font-size:12px;color:var(--muted-2);font-weight:600}
+.tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px}
+.tile{
+  position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);
+  padding:11px 12px 11px 15px;text-align:left;overflow:hidden;box-shadow:var(--shadow);transition:transform .05s;
+}
+.tile:active{transform:scale(.98)}
+.tile .spine{position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--line)}
+.tile.s-open .spine{background:var(--signal)}
+.tile.s-alert .spine{background:var(--alert)}
+.tile.s-clear .spine{background:var(--resolved)}
+.tile .addr{font-weight:700;font-size:15px;letter-spacing:-.01em}
+.tile .addr .u{display:inline-block;margin-left:5px;font-size:11px;font-weight:700;color:#fff;background:var(--ink-2);border-radius:5px;padding:1px 5px;vertical-align:1px}
+.tile .own{font-size:12px;color:var(--muted-2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .badge{position:absolute;top:9px;right:9px;min-width:20px;height:20px;border-radius:10px;background:var(--signal);color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center;padding:0 5px}
+.tile .badge.alert{background:var(--alert)}
+
+/* ---- pills / chips ---- */
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;letter-spacing:.01em}
+.pill.open{background:var(--signal-soft);color:#8a5210}
+.pill.sent{background:#E6ECF3;color:#2c4a6b}
+.pill.cured{background:var(--resolved-soft);color:#2f5a3d}
+.pill.closed{background:#ECE7DC;color:#6b6353}
+.pill.hearing{background:#EEE3F2;color:#6a3d7a}
+.pill.fined{background:var(--alert-soft);color:#8a2a2a}
+.pill.sev-Low{background:#E9EEF0;color:#4a5d66}
+.pill.sev-Medium{background:var(--signal-soft);color:#8a5210}
+.pill.sev-High{background:var(--alert-soft);color:#8a2a2a}
+
+/* ---- violation list (sheet) ---- */
+.vlist{display:flex;flex-direction:column;gap:8px}
+.vcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px 13px;box-shadow:var(--shadow);text-align:left;width:100%}
+.vcard:active{transform:scale(.995)}
+.vcard .top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.vcard .addr{font-weight:700;font-size:14.5px}
+.vcard .cat{font-size:13px;color:var(--ink-2);margin-top:1px}
+.vcard .meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+.vcard .date{font-size:12px;color:var(--muted-2);font-weight:600}
+.vcard .ph{font-size:12px;color:var(--muted-2);display:inline-flex;align-items:center;gap:3px;font-weight:600}
+.vcard .ph svg{width:13px;height:13px}
+
+/* ---- empty ---- */
+.empty{text-align:center;padding:46px 20px;color:var(--muted-2)}
+.empty svg{width:42px;height:42px;color:var(--line);margin-bottom:10px}
+.empty h3{font-size:16px;color:var(--ink);margin-bottom:4px}
+.empty p{font-size:14px;margin:0}
+
+/* ---- buttons ---- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-weight:700;font-size:14.5px;
+  padding:11px 16px;border-radius:11px;background:var(--ink);color:#fff;border:1px solid var(--ink);transition:transform .05s}
+.btn:active{transform:scale(.98)}
+.btn.signal{background:var(--signal);border-color:var(--signal)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:transparent;color:var(--alert);border:1px solid var(--alert-soft)}
+.btn.block{width:100%}
+.btn.sm{padding:8px 12px;font-size:13px;border-radius:9px}
+.btn svg{width:17px;height:17px}
+
+/* ---- modal / sheet ---- */
+.scrim{position:fixed;inset:0;background:rgba(20,28,38,.45);z-index:50;display:none;align-items:flex-end;justify-content:center}
+.scrim.show{display:flex}
+.sheet{
+  background:var(--paper);width:100%;max-width:560px;max-height:92vh;overflow:auto;
+  border-radius:18px 18px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,.25);
+  padding:8px 18px calc(env(safe-area-inset-bottom) + 22px);animation:up .22s ease;
+}
+@keyframes up{from{transform:translateY(28px);opacity:.6}to{transform:none;opacity:1}}
+.grab{width:38px;height:4px;border-radius:2px;background:var(--line);margin:8px auto 12px}
+.sheet h2{font-size:19px;margin-bottom:2px}
+.sheet .sub{color:var(--muted-2);font-size:13.5px;margin-bottom:14px}
+.field{margin-bottom:13px}
+.field label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-2);margin-bottom:5px;letter-spacing:.01em}
+.field input,.field select,.field textarea{
+  width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);outline:none}
+.field textarea{min-height:78px;resize:vertical;line-height:1.5}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--signal)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* ---- detail blocks ---- */
+.dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:14px;margin:10px 0}
+.dl dt{color:var(--muted-2);font-weight:600}
+.dl dd{margin:0;font-weight:600}
+.contact-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 4px}
+.contact-row a{font-size:13px;font-weight:700;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:9px;padding:7px 11px;text-decoration:none;display:inline-flex;gap:6px;align-items:center}
+.contact-row a svg{width:14px;height:14px;color:var(--signal)}
+.divider{height:1px;background:var(--line);margin:14px 0}
+
+/* ---- photo capture ---- */
+.photo-actions{display:flex;gap:9px;margin-bottom:10px}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px}
+.thumb{position:relative;border-radius:9px;overflow:hidden;border:1px solid var(--line);aspect-ratio:1;background:#eee}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb button{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(20,28,38,.7);color:#fff;display:grid;place-items:center}
+.thumb button svg{width:12px;height:12px}
+
+/* ---- settings ---- */
+.card-block{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--shadow);margin-bottom:14px}
+.card-block h3{font-size:14px;margin-bottom:3px}
+.card-block p.note{font-size:12.5px;color:var(--muted-2);margin:0 0 12px}
+.stat-row{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.stat{flex:1;min-width:90px;background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:12px 14px;box-shadow:var(--shadow)}
+.stat .n{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.stat .l{font-size:11.5px;color:var(--muted-2);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.stat.open .n{color:var(--signal)}
+.stat.alert .n{color:var(--alert)}
+
+/* ---- toast ---- */
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 20px);transform:translateX(-50%);
+  background:var(--ink);color:#fff;padding:11px 18px;border-radius:12px;font-size:14px;font-weight:600;
+  z-index:80;box-shadow:0 8px 30px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ===================== NOTICE (print) ===================== */
+#noticeOverlay{position:fixed;inset:0;background:#fff;z-index:90;overflow:auto;display:none}
+#noticeOverlay.show{display:block}
+.notice-bar{position:sticky;top:0;background:var(--ink);color:#fff;display:flex;gap:8px;align-items:center;
+  padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;z-index:2}
+.notice-bar .spacer{flex:1}
+.notice-page{max-width:720px;margin:18px auto;background:#fff;padding:46px 54px;color:#1a1a1a;
+  font-family:'Source Serif 4',Georgia,serif;font-size:14.5px;line-height:1.62}
+.lh{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+.lh .assoc{font-family:'Hanken Grotesk',sans-serif;font-weight:800;font-size:20px;letter-spacing:-.01em;color:var(--ink)}
+.lh .agent{font-family:'Hanken Grotesk',sans-serif;font-size:12px;color:#555;margin-top:3px;line-height:1.4}
+.notice-page .date{margin:0 0 18px}
+.notice-page .to{margin:0 0 18px;line-height:1.4}
+.notice-page .re{font-weight:600;margin:0 0 18px;font-family:'Hanken Grotesk',sans-serif}
+.notice-page p{margin:0 0 13px}
+.vbox{border:1px solid #ccc;border-left:4px solid var(--signal);background:#faf7f2;padding:12px 16px;margin:0 0 16px;
+  font-family:'Hanken Grotesk',sans-serif;font-size:13.5px;line-height:1.55}
+.vbox b{color:var(--ink)}
+.sig{margin-top:26px}
+.sig .nm{font-weight:600}
+.photos-print{margin-top:24px;border-top:1px solid #ddd;padding-top:16px}
+.photos-print h4{font-family:'Hanken Grotesk',sans-serif;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#666;margin:0 0 10px}
+.photos-print .pg{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.photos-print img{width:100%;border:1px solid #ddd;border-radius:4px}
+.photos-print .cap{font-family:'Hanken Grotesk',sans-serif;font-size:10.5px;color:#777;margin-top:3px}
+@media print{
+  .topbar,.tabs,.notice-bar,.scrim{display:none!important}
+  #noticeOverlay{position:static;display:block!important;overflow:visible}
+  .notice-page{margin:0;max-width:none;padding:0;box-shadow:none}
+  .photos-print{page-break-inside:avoid}
+  @page{margin:18mm 16mm}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="mark">BV</div>
+  <div>
+    <h1>Birchwood Violations</h1>
+    <div class="sub">Krono Property Management</div>
+  </div>
+  <div class="spacer"></div>
+  <button class="icon-btn" id="navSettings" aria-label="Settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+</header>
+
+<nav class="tabs">
+  <button data-tab="units" class="on">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
+    Units
+  </button>
+  <button data-tab="sheet">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+    Violations
+  </button>
+</nav>
+
+<main class="wrap">
+  <!-- UNITS -->
+  <section id="view-units">
+    <p class="eyebrow">Property roster</p>
+    <div class="stat-row" id="statRow"></div>
+    <div class="controls">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="unitSearch" placeholder="Search address or owner" autocomplete="off">
+      </div>
+      <select id="unitFilter" class="filter">
+        <option value="all">All units</option>
+        <option value="open">With open violations</option>
+        <option value="clean">No open violations</option>
+      </select>
+    </div>
+    <div id="rosterBody"></div>
+  </section>
+
+  <!-- SHEET -->
+  <section id="view-sheet" class="hidden">
+    <p class="eyebrow">Violation log</p>
+    <div class="controls">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="vSearch" placeholder="Search address, owner, category" autocomplete="off">
+      </div>
+      <select id="vStatus" class="filter">
+        <option value="all">All statuses</option>
+        <option>Open</option><option>Notice Sent</option><option>Cured</option>
+        <option>Hearing</option><option>Fined</option><option>Closed</option>
+      </select>
+      <select id="vCat" class="filter"><option value="all">All categories</option></select>
+    </div>
+    <div class="row" style="margin-bottom:12px">
+      <button class="btn ghost sm" id="exportXlsx"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>Export to Excel</button>
+      <button class="btn ghost sm" id="exportZip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18"/></svg>Photos ZIP</button>
+    </div>
+    <div id="sheetBody" class="vlist"></div>
+  </section>
+</main>
+
+<!-- generic sheet modal -->
+<div class="scrim" id="scrim"><div class="sheet" id="sheetModal"></div></div>
+
+<!-- notice overlay -->
+<div id="noticeOverlay">
+  <div class="notice-bar">
+    <button class="btn ghost sm" id="noticeBack" style="color:#fff;border-color:rgba(255,255,255,.3)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>Back</button>
+    <div class="spacer"></div>
+    <button class="btn sm" id="noticePrint" style="background:#fff;color:var(--ink);border-color:#fff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print / Save PDF</button>
+  </div>
+  <div id="noticeContent"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ====================== DATA ====================== */
+var EMBEDDED_UNITS = [{"id":"100107534N","owner":"Dona Moushi","address":"7534 N. Maplewood Ave.","unit":"","num":"7534","streetKey":"N. Maplewood Ave.","email":["dona.moushi@yahoo.com"],"phone":"","mobile":"7733225440","work":"7738070888","status":"Owner","balance":"0.0000"},{"id":"100107536N","owner":"Diana Smith","address":"7536 N. Maplewood Ave.","unit":"","num":"7536","streetKey":"N. Maplewood Ave.","email":["coolcat66@live.com"],"phone":"6084494660","mobile":"","work":"","status":"Owner","balance":"0.0000"},{"id":"100107538N","owner":"Sheldon Hurovitz","address":"7538 N. Maplewood Ave.","unit":"","num":"7538","streetKey":"N. Maplewood Ave.","email":["shhurovitz@gmail.com"],"phone":"7737614358","mobile":"","work":"","status":"Owner","balance":"0.0000"},{"id":"100107540N","owner":"Ataur Rahman","address":"7540 N Maplewood Ave","unit":"","num":"7540","streetKey":"N. Maplewood Ave.","email":["bodi.zaman@yahoo.com"],"phone":"3126478583","mobile":"","work":"","status":"Owner","balance":"-325.0000"},{"id":"100107550N","owner":"Silva Nanette","address":"7550 N. Maplewood Ave.","unit":"","num":"7550","streetKey":"N. Maplewood Ave.","email":["silvananette12@gmail.com"],"phone":"","mobile":"7738377128","work":"","status":"Owner","balance":"0.0000"},{"id":"100107552N","owner":"Francis Gail A.","address":"7552 N. Maplewood Ave.","unit":"","num":"7552","streetKey":"N. Maplewood Ave.","email":["gafjq77@comcast.net"],"phone":"7737435373","mobile":"7737435373","work":"","status":"Owner","balance":"0.0000"},{"id":"100107554N","owner":"Shleimon Jan","address":"7554 N. Maplewood Ave.","unit":"","num":"7554","streetKey":"N. Maplewood Ave.","email":["oreyhana@yahoo.com"],"phone":"","mobile":"8474771747","work":"","status":"Owner","balance":"0.0000"},{"id":"100107556N","owner":"Jian Zhen Gao","address":"7556 N. Maplewood Ave.","unit":"","num":"7556","streetKey":"N. Maplewood Ave.","email":["gao.henhao@gmail.com"],"phone":"","mobile":"7737011992","work":"","status":"Owner","balance":"0.0000"},{"id":"100107501N","owner":"Urvashi Bhatt","address":"7501 N. Rockwell Ave.","unit":"","num":"7501","streetKey":"N. Rockwell Ave.","email":["urvashimbhatt@yahoo.com"],"phone":"7738183118","mobile":"7737618691","work":"","status":"Owner","balance":"0.0000"},{"id":"100107505N","owner":"Khanina Amel","address":"7505 N. Rockwell Ave.","unit":"","num":"7505","streetKey":"N. Rockwell Ave.","email":[],"phone":"","mobile":"7734308700","work":"","status":"Owner","balance":"380.7700"},{"id":"100107507N","owner":"Nguyen Lynh","address":"7507 N. Rockwell Ave.","unit":"","num":"7507","streetKey":"N. Rockwell Ave.","email":["uyennguyen1966@yahoo.com","lynhcey@yahoo.com","viem3009@yahoo.com"],"phone":"7089167899","mobile":"7089167899","work":"","status":"Owner","balance":"0.0000"},{"id":"100107511N","owner":"Abufatah Yahya Noorani","address":"7511 N. Rockwell Ave.","unit":"","num":"7511","streetKey":"N. Rockwell Ave.","email":["yahyanoorani@yahoo.com"],"phone":"","mobile":"7736154566","work":"","status":"Owner","balance":"0.0000"},{"id":"100107515N","owner":"Irwin Jacobson","address":"7515 N. Rockwell Ave.","unit":"","num":"7515","streetKey":"N. Rockwell Ave.","email":[],"phone":"","mobile":"8476095400","work":"3123718605","status":"Owner","balance":"159.8600"},{"id":"100107517N","owner":"Yared Bahta","address":"7517 N. Rockwell Street","unit":"","num":"7517","streetKey":"N. Rockwell Ave.","email":[],"phone":"","mobile":"4086242607","work":"3122626440","status":"Owner","balance":"0.0000"},{"id":"100107521N","owner":"Maria Degginger","address":"7521 N. Rockwell Ave.","unit":"","num":"7521","streetKey":"N. Rockwell Ave.","email":["romydegginger@hotmail.com"],"phone":"","mobile":"","work":"","status":"Owner","balance":"0.0000"},{"id":"100107525N","owner":"Asres,Samson & Marta Samson","address":"7525 N. Rockwell Ave.","unit":"","num":"7525","streetKey":"N. Rockwell Ave.","email":["martaasres2@gmail.com"],"phone":"","mobile":"7735440424","work":"8474474230","status":"Owner","balance":"0.0000"},{"id":"100107533N","owner":"Adetunji Adeshina","address":"7533 N. Rockwell","unit":"","num":"7533","streetKey":"N. Rockwell Ave.","email":["shola830@att.net"],"phone":"3127747691","mobile":"3122170448","work":"7732973662","status":"Owner","balance":"0.0000"},{"id":"100107535N","owner":"Hamed Shabila","address":"7535 N. Rockwell Ave.","unit":"","num":"7535","streetKey":"N. Rockwell Ave.","email":["hameedshabila@yahoo.com"],"phone":"","mobile":"7739312626","work":"","status":"Owner","balance":"0.0000"},{"id":"100107539N","owner":"Harriet Brossel","address":"7539 N. Rockwell Ave.","unit":"","num":"7539","streetKey":"N. Rockwell Ave.","email":["harrietbrossel89@gmail.com"],"phone":"7739736820","mobile":"8474919612","work":"","status":"Owner","balance":"0.0000"},{"id":"100107543N","owner":"Saeed Bhatti","address":"7543 N. Rockwell Avenue","unit":"","num":"7543","streetKey":"N. Rockwell Ave.","email":["saeedabhatti@yahoo.com"],"phone":"","mobile":"7739567340","work":"7738863195","status":"Owner","balance":"0.0000"},{"id":"100107551N","owner":"Mohammad Khader","address":"7551 N. Rockwell Ave.","unit":"","num":"7551","streetKey":"N. Rockwell Ave.","email":["anwar70@gmail.com"],"phone":"7734306044","mobile":"7734306044","work":"","status":"Owner","balance":"0.0000"},{"id":"100107553N","owner":"Samuel Zaya","address":"7553 N. Rockwell Ave.","unit":"","num":"7553","streetKey":"N. Rockwell Ave.","email":["samuel.zaya@gmail.com"],"phone":"","mobile":"7734919406","work":"","status":"Owner","balance":"0.0000"},{"id":"100107555N","owner":"Syed Shah","address":"7555 N. Rockwell Street","unit":"","num":"7555","streetKey":"N. Rockwell Ave.","email":["mumtazshah999111@gmail.com"],"phone":"6305142222","mobile":"","work":"","status":"Owner","balance":"0.0000"},{"id":"100107557N","owner":"Aamir Haseena","address":"7557 N. Rockwell Street","unit":"","num":"7557","streetKey":"N. Rockwell Ave.","email":["mehmoodhaseena46@gmail.com"],"phone":"","mobile":"7735920672","work":"","status":"Owner","balance":"0.0000"},{"id":"100102450WA","owner":"Ildebrando Pereira","address":"2450 W. Birchwood Ave.","unit":"A","num":"2450","streetKey":"W. Birchwood Ave.","email":["Brandopereira44@gmail.com"],"phone":"7732903542","mobile":"","work":"","status":"Owner","balance":"0.0000"},{"id":"100102450WB","owner":"Antoinette Butler","address":"2450 W. Birchwood Ave.","unit":"B","num":"2450","streetKey":"W. Birchwood Ave.","email":["litpps@msn.com"],"phone":"","mobile":"7735510204","work":"","status":"Owner","balance":"0.0000"},{"id":"100102450WC","owner":"Jeanette Cotledge","address":"2450 W. Birchwood Ave.","unit":"C","num":"2450","streetKey":"W. Birchwood Ave.","email":["Jeanette@cotledgeassociates.com","jchrconsulting@sbcglobal.net"],"phone":"3129655278","mobile":"","work":"","status":"Owner","balance":"0.0000"},{"id":"100102450WD","owner":"Kizzy Sudduth","address":"2450 W. Birchwood Ave.","unit":"D","num":"2450","streetKey":"W. Birchwood Ave.","email":["ksudduth_30@att.net"],"phone":"","mobile":"7739860620","work":"","status":"Owner","balance":"0.0000"},{"id":"100102456WA","owner":"Sarbagya Tuladhar","address":"2456 W. Birchwood Ave.","unit":"A","num":"2456","streetKey":"W. Birchwood Ave.","email":["sarbagyadhar@yahoo.com"],"phone":"7737647088","mobile":"7736001497","work":"","status":"Owner","balance":"0.0000"},{"id":"100102456WB","owner":"Al Hamedani","address":"2456 W. Birchwood Ave.","unit":"B","num":"2456","streetKey":"W. Birchwood Ave.","email":["alhamedani@gmail.com","ahamedani@aol.com"],"phone":"","mobile":"7732518200","work":"","status":"Owner","balance":"0.0000"},{"id":"100102456WC","owner":"Cindy Ou","address":"2456 W. Birchwood Ave.","unit":"C","num":"2456","streetKey":"W. Birchwood Ave.","email":["stephanieou5@gmail.com"],"phone":"7736913545","mobile":"7738074869","work":"","status":"Owner","balance":"0.0000"},{"id":"100102456WD","owner":"Kimberly Gow","address":"2456 W. Birchwood Ave.","unit":"D","num":"2456","streetKey":"W. Birchwood Ave.","email":["kimgow828@gmail.com"],"phone":"","mobile":"","work":"","status":"Owner","balance":"0.0000"},{"id":"100102462WA","owner":"Bernadette Edom","address":"2462 W. Birchwood Ave.","unit":"A","num":"2462","streetKey":"W. Birchwood Ave.","email":["joncam16@yahoo.com"],"phone":"3123555827","mobile":"7739342239","work":"","status":"Owner","balance":"0.0000"},{"id":"100102462WB","owner":"Chicago Housing Authority","address":"2462 W. Birchwood Ave.","unit":"B","num":"2462","streetKey":"W. Birchwood Ave.","email":["csmith@eastlakemgmt.com"],"phone":"7737691555","mobile":"","work":"","status":"Owner","balance":"1699.2200"},{"id":"100102462WC","owner":"Marvin Mitofsky","address":"2462 W. Birchwood Ave.","unit":"C","num":"2462","streetKey":"W. Birchwood Ave.","email":["stoogefan@yahoo.com"],"phone":"8477443265","mobile":"8477443265","work":"8478013100x123","status":"Owner","balance":"0.0000"},{"id":"100102462WD","owner":"Emmert Gauthier","address":"2462 W. Birchwood Ave.","unit":"D","num":"2462","streetKey":"W. Birchwood Ave.","email":[],"phone":"8476095467","mobile":"8476095467","work":"3127445907","status":"Owner","balance":"0.0000"},{"id":"100102500WA","owner":"Ishtar Investments Inc","address":"2500 W. Birchwood Ave.","unit":"A","num":"2500","streetKey":"W. Birchwood Ave.","email":["alsaimary@gmail.com"],"phone":"","mobile":"7739341122","work":"","status":"Tenant Occupied","balance":"0.0000"},{"id":"100102500WB","owner":"Mohit Modi","address":"2500 W. Birchwood Ave.","unit":"B","num":"2500","streetKey":"W. Birchwood Ave.","email":["kmragini2@yahoo.com"],"phone":"7736280986","mobile":"7736555442","work":"","status":"Owner","balance":"0.0000"},{"id":"100102500WC","owner":"Salma Saleem Khan","address":"2500 W. Birchwood Ave.","unit":"C","num":"2500","streetKey":"W. Birchwood Ave.","email":["canadiana044@yahoo.com"],"phone":"","mobile":"3125760611","work":"","status":"Owner","balance":"0.0000"},{"id":"100102500WD","owner":"Khan Mohammed","address":"2500 W. Birchwood Ave.","unit":"D","num":"2500","streetKey":"W. Birchwood Ave.","email":["asadm5426@gmail.com"],"phone":"7737196146","mobile":"7737166146","work":"","status":"Owner","balance":"0.0000"},{"id":"100102508WA","owner":"Naomi Richman","address":"2508 W. Birchwood Ave.","unit":"A","num":"2508","streetKey":"W. Birchwood Ave.","email":["sushinechmad@gmail.com"],"phone":"7739719502","mobile":"7733987710","work":"","status":"Owner","balance":"0.0000"},{"id":"100102508WB","owner":"Thinh H. Pham","address":"2508 W. Birchwood Ave.","unit":"B","num":"2508","streetKey":"W. Birchwood Ave.","email":[],"phone":"","mobile":"7735161329","work":"","status":"Owner","balance":"910.7700"},{"id":"100102508WC","owner":"Digol Jacobs","address":"2508 W. Birchwood Ave.","unit":"C","num":"2508","streetKey":"W. Birchwood Ave.","email":[],"phone":"7732747151","mobile":"7734168049","work":"","status":"Owner","balance":"0.0000"},{"id":"100102508WD","owner":"Richard Ryzewski","address":"2508 W. Birchwood Ave.","unit":"D","num":"2508","streetKey":"W. Birchwood Ave.","email":["ryzewski@hotmail.com"],"phone":"","mobile":"7082145972","work":"","status":"Owner","balance":"0.0000"},{"id":"100102514WA","owner":"Harvey Daniels","address":"2514 W. Birchwood Ave.","unit":"A","num":"2514","streetKey":"W. Birchwood Ave.","email":["harvey.daniels@gmail.com","kdaniels1@gmail.com"],"phone":"3129534962","mobile":"3129534962","work":"","status":"Owner","balance":"0.0000"},{"id":"100102514WB","owner":"Elaine Merchant","address":"2514 W. Birchwood Ave.","unit":"B","num":"2514","streetKey":"W. Birchwood Ave.","email":[],"phone":"","mobile":"8722357696","work":"3122274000","status":"Owner","balance":"0.0000"},{"id":"100102514WC","owner":"Leo Villar","address":"2514 W. Birchwood Ave.","unit":"C","num":"2514","streetKey":"W. Birchwood Ave.","email":["joanvillar1957@gmail.com"],"phone":"7734650353","mobile":"","work":"","status":"Owner","balance":"250.0000"},{"id":"100102514WD","owner":"Jennifer E. Smith","address":"2514 W. Birchwood Ave.","unit":"D","num":"2514","streetKey":"W. Birchwood Ave.","email":["jennis.82@gmail.com"],"phone":"6307421912","mobile":"","work":"","status":"Owner","balance":"0.0000"},{"id":"100102520WA","owner":"Pham Tamdan","address":"2520 W. Birchwood Ave.","unit":"A","num":"2520","streetKey":"W. Birchwood Ave.","email":["tamdanpham49@gmail.com"],"phone":"","mobile":"7736276001","work":"8479659600","status":"Owner","balance":"0.0000"},{"id":"100102520WB","owner":"Syed S Hassan","address":"2520 W. Birchwood Ave.","unit":"B","num":"2520","streetKey":"W. Birchwood Ave.","email":["maria_shuja@hotmail.com"],"phone":"2773226321x6","mobile":"","work":"","status":"Owner","balance":"0.0000"},{"id":"100102520WC","owner":"Sophia Jung","address":"2520 W. Birchwood Ave.","unit":"C","num":"2520","streetKey":"W. Birchwood Ave.","email":["andrewjung88@gmail.com"],"phone":"","mobile":"7738074152","work":"","status":"Owner","balance":"0.0000"},{"id":"100102520WD","owner":"Wondwsen Beyene","address":"2520 W. Birchwood Ave.","unit":"D","num":"2520","streetKey":"W. Birchwood Ave.","email":["wondwsenbeyene@gmail.com"],"phone":"","mobile":"7736812887","work":"","status":"Owner","balance":"0.0000"},{"id":"100102526WA","owner":"Sanjay M Mehta","address":"2526 W. Birchwood Ave.","unit":"A","num":"2526","streetKey":"W. Birchwood Ave.","email":["harivar_km@att.net"],"phone":"","mobile":"7733874997","work":"","status":"Owner","balance":"0.0000"},{"id":"100102526WB","owner":"Leo Philippe Espinosa","address":"2526 W. Birchwood Ave.","unit":"B","num":"2526","streetKey":"W. Birchwood Ave.","email":["leophilippe@yahoo.com"],"phone":"","mobile":"7738655621","work":"","status":"Owner","balance":"0.0000"},{"id":"100102526WC","owner":"Daniel M Kesete","address":"2526 W. Birchwood Ave.","unit":"C","num":"2526","streetKey":"W. Birchwood Ave.","email":["henock2007@yahoo.com"],"phone":"","mobile":"","work":"","status":"Owner","balance":"0.0000"},{"id":"100102526WD","owner":"Pelster Natalie","address":"2526 W. Birchwood Ave.","unit":"D","num":"2526","streetKey":"W. Birchwood Ave.","email":["pelsternatalie@gmail.com"],"phone":"8474918735","mobile":"7732510487","work":"","status":"Owner","balance":"0.0000"},{"id":"100102532WA","owner":"Rajesh K. Desai","address":"2532 W. Birchwood Ave.","unit":"A","num":"2532","streetKey":"W. Birchwood Ave.","email":["rajeshdesai2006@yahoo.com"],"phone":"7738805544","mobile":"7735589185","work":"","status":"Owner","balance":"0.0000"},{"id":"100102532WB","owner":"Jelili Olawore","address":"2532 W. Birchwood Ave.","unit":"B","num":"2532","streetKey":"W. Birchwood Ave.","email":["rasheedatolawore36@yahoo.com"],"phone":"3124791057","mobile":"7734400543","work":"","status":"Owner","balance":"0.0000"},{"id":"100102532WC","owner":"Muhammad Bhatti","address":"2532 W. Birchwood Ave.","unit":"C","num":"2532","streetKey":"W. Birchwood Ave.","email":["muhammadbhatti1234@gmail.com"],"phone":"7737893397","mobile":"7735634173","work":"","status":"Owner","balance":"0.0000"},{"id":"100102532WD","owner":"Francis Beniania","address":"2532 W. Birchwood Ave.","unit":"D","num":"2532","streetKey":"W. Birchwood Ave.","email":["beniana@sbcglobal.net"],"phone":"7734399417","mobile":"7736718371","work":"","status":"Owner","balance":"0.0000"},{"id":"100102538WA","owner":"Shabanaben Vahora","address":"2538 W. Birchwood Ave.","unit":"A","num":"2538","streetKey":"W. Birchwood Ave.","email":["vshabana56@gmail.com","rvahora36@gmail.com"],"phone":"7738657982","mobile":"7734748719","work":"","status":"Owner","balance":"-102.0000"},{"id":"100102538WB","owner":"Feras Hormes","address":"2538 W. Birchwood Ave.","unit":"B","num":"2538","streetKey":"W. Birchwood Ave.","email":["ferrishermes75@gmail.com"],"phone":"","mobile":"3128040402","work":"","status":"Owner","balance":"0.0000"},{"id":"100102538WC","owner":"Melanie Polvorosa","address":"2538 W. Birchwood Ave.","unit":"C","num":"2538","streetKey":"W. Birchwood Ave.","email":["potainy69@gmail.com"],"phone":"","mobile":"7736150035","work":"","status":"Owner","balance":"0.0000"},{"id":"100102538WD","owner":"Yousif Bilandena","address":"2538 W. Birchwood Ave.","unit":"D","num":"2538","streetKey":"W. Birchwood Ave.","email":["samyou333@gmail.com"],"phone":"","mobile":"7738418410","work":"","status":"Owner","balance":"0.0000"},{"id":"100102544WA","owner":"Joel Simon","address":"2544 W. Birchwood Ave.","unit":"A","num":"2544","streetKey":"W. Birchwood Ave.","email":["jh.simon613@gmail.com"],"phone":"7733301427","mobile":"7733669128","work":"","status":"Owner","balance":"0.0000"},{"id":"100102544WB","owner":"Maria Tanovich","address":"2544 W. Birchwood Ave.","unit":"B","num":"2544","streetKey":"W. Birchwood Ave.","email":["mariatanovich@yahoo.com"],"phone":"","mobile":"","work":"","status":"Owner","balance":"0.0000"},{"id":"100102544WC","owner":"David Linsky","address":"2544 W. Birchwood Ave.","unit":"C","num":"2544","streetKey":"W. Birchwood Ave.","email":[],"phone":"","mobile":"","work":"","status":"Owner","balance":"595.6800"},{"id":"100102544WD","owner":"Frishman Jeffrey","address":"2544 W. Birchwood Ave.","unit":"D","num":"2544","streetKey":"W. Birchwood Ave.","email":["jafrish@aol.com"],"phone":"7739734575","mobile":"7737568143","work":"","status":"Owner","balance":"0.0000"},{"id":"100102251WA","owner":"Mesele Asfaw","address":"2251 W. Howard St","unit":"A","num":"2251","streetKey":"W. Howard St.","email":["meseleda2009@yahoo.com"],"phone":"7734432405","mobile":"7734432405","work":"3126425554","status":"Owner","balance":"0.0000"},{"id":"100102531WA","owner":"Mehta Suresh","address":"2531 W. Howard St.","unit":"A","num":"2531","streetKey":"W. Howard St.","email":["smehta38@hotmail.com"],"phone":"","mobile":"9199281060","work":"","status":"Owner","balance":"0.0000"},{"id":"100102531WB","owner":"Ashar Khan","address":"2531 W. Howard St.","unit":"B","num":"2531","streetKey":"W. Howard St.","email":["Khanashar54@yahoo.com"],"phone":"3315514938","mobile":"3315514938","work":"3315514938","status":"Owner","balance":"0.0000"},{"id":"100102531WC","owner":"Frances Hailemariam","address":"2531 W. Howard St.","unit":"C","num":"2531","streetKey":"W. Howard St.","email":["franceshaile2@gmail.com"],"phone":"7733183131","mobile":"","work":"","status":"Owner","balance":"0.0000"},{"id":"100102531WD","owner":"Lucrecia Correa","address":"2531 W. Howard St.","unit":"D","num":"2531","streetKey":"W. Howard St.","email":["hernandez04072010@gmail.com","Stephsoto0988@gmail.com"],"phone":"7736814195","mobile":"7736816149","work":"7734031934","status":"Owner","balance":"0.0000"},{"id":"100102537WA","owner":"Mohammed A. Wohab","address":"2537 W. Howard St.","unit":"A","num":"2537","streetKey":"W. Howard St.","email":["wohab92061@gmail.com"],"phone":"","mobile":"7737804205","work":"","status":"Owner","balance":"0.0000"},{"id":"100102537WB","owner":"Emebet Mehertu","address":"2537 W. Howard St.","unit":"B","num":"2537","streetKey":"W. Howard St.","email":["enmehertu@gmail.com"],"phone":"","mobile":"7736631399","work":"","status":"Owner","balance":"0.0000"},{"id":"100102537WC","owner":"Latasha Hughes","address":"2537 W. Howard St.","unit":"C","num":"2537","streetKey":"W. Howard St.","email":["jazzjw357@yahoo.com","Tashaw75@yahoo.com"],"phone":"7736777971","mobile":"7736777971","work":"7737104421","status":"Owner","balance":"0.0000"},{"id":"100102537WD","owner":"Rahman Walior","address":"2537 W. Howard St.","unit":"D","num":"2537","streetKey":"W. Howard St.","email":["mumurahman@yahoo.com"],"phone":"3126137546","mobile":"3126136847","work":"8728888952","status":"Owner","balance":"0.0000"},{"id":"100102543WA","owner":"Hassan Syed Abdul","address":"2543 W. Howard St.","unit":"A","num":"2543","streetKey":"W. Howard St.","email":["syedahassan7933@gmail.com"],"phone":"7737508384","mobile":"7737508384","work":"7732747023","status":"Owner","balance":"350.0000"},{"id":"100102543WB","owner":"Anand Shashi","address":"2543 W. Howard St.","unit":"B","num":"2543","streetKey":"W. Howard St.","email":[],"phone":"","mobile":"","work":"","status":"Owner","balance":"225.0000"},{"id":"100102543WC","owner":"Edgar Briones","address":"2543 W. Howard St.","unit":"C","num":"2543","streetKey":"W. Howard St.","email":["halleykushner@gmail.com"],"phone":"7863998469","mobile":"7733440652","work":"7863998469","status":"Owner","balance":"0.0000"},{"id":"100102543WD","owner":"Sarker Abdus Salam","address":"2543 W. Howard St.","unit":"D","num":"2543","streetKey":"W. Howard St.","email":["sarker_242@yahoo.com"],"phone":"","mobile":"","work":"","status":"Owner","balance":"2290.2300"},{"id":"100102551WB","owner":"Peter B. Wallis","address":"2551 W. Howard St.","unit":"B","num":"2551","streetKey":"W. Howard St.","email":[],"phone":"","mobile":"7737619514","work":"","status":"Owner","balance":"0.0000"},{"id":"100102551WC","owner":"Jerome Kozma","address":"2551 W. Howard St.","unit":"C","num":"2551","streetKey":"W. Howard St.","email":[],"phone":"","mobile":"","work":"","status":"Owner","balance":"350.0000"},{"id":"100102551WD","owner":"Alberto Maya","address":"2551 W. Howard St.","unit":"D","num":"2551","streetKey":"W. Howard St.","email":["albertomaya2@gmail.com"],"phone":"","mobile":"","work":"","status":"Owner","balance":"0.0000"},{"id":"100102521WA","owner":"Najat A. Kadow","address":"2521 W. Jerome Ave.","unit":"A","num":"2521","streetKey":"W. Jerome Ave.","email":["kadownajat@gmail.com","najat.kadow@gmail.com"],"phone":"","mobile":"","work":"","status":"Owner","balance":"0.0000"},{"id":"100102521WB","owner":"Irfan Khan","address":"2521 W. Jerome Ave.","unit":"B","num":"2521","streetKey":"W. Jerome Ave.","email":["irfan83@msn.com"],"phone":"7739871113","mobile":"7739871113","work":"","status":"Owner","balance":"0.0000"},{"id":"100102521WC","owner":"Olga Fishley","address":"2521 W. Jerome Ave.","unit":"C","num":"2521","streetKey":"W. Jerome Ave.","email":["myonly2@me.com"],"phone":"","mobile":"7735782774","work":"","status":"Owner","balance":"0.0000"},{"id":"100102521WD","owner":"Jiwan Garg","address":"2521 W. Jerome Ave.","unit":"D","num":"2521","streetKey":"W. Jerome Ave.","email":["jiwangarg411@gmail.com","gargjitin@yahoo.com"],"phone":"7737612664","mobile":"7737612664","work":"","status":"Owner","balance":"0.0000"},{"id":"100102528WA","owner":"Brenda J. Foster","address":"2528 W. Jerome Ave.","unit":"A","num":"2528","streetKey":"W. Jerome Ave.","email":[],"phone":"","mobile":"","work":"2773620477","status":"Owner","balance":"0.0000"},{"id":"100102528WB","owner":"Mohammad Hamed Ali","address":"2528 W. Jerome St.","unit":"B","num":"2528","streetKey":"W. Jerome Ave.","email":["realchimali@gmail.com"],"phone":"","mobile":"7736558578","work":"","status":"Owner","balance":"0.0000"},{"id":"100102528WBA","owner":"Mohammad Ali","address":"2528 W. Jerome St.","unit":"C","num":"2528","streetKey":"W. Jerome Ave.","email":["realchimali@gmail.com"],"phone":"","mobile":"","work":"","status":"Owner","balance":"0.0000"},{"id":"100102528WD","owner":"Kohn, Dale","address":"2528 W. Jerome Ave.","unit":"D","num":"2528","streetKey":"W. Jerome Ave.","email":["themeems@comcast.net"],"phone":"","mobile":"8473374746","work":"","status":"Owner","balance":"-0.1000"},{"id":"100102529WA","owner":"Ong Thanh Van","address":"2529 W. Jerome Ave.","unit":"A","num":"2529","streetKey":"W. Jerome Ave.","email":["thanhong7@yahoo.com"],"phone":"","mobile":"7735952906","work":"2246283466","status":"Owner","balance":"0.0000"},{"id":"100102529WB","owner":"Kazi H Ahmed","address":"2529 W. Jerome Ave.","unit":"B","num":"2529","streetKey":"W. Jerome Ave.","email":["kahyderabad@gmail.com"],"phone":"","mobile":"","work":"","status":"Owner","balance":"350.0000"},{"id":"100102529WC","owner":"Contreras Rafael","address":"2529 W. Jerome Ave.","unit":"C","num":"2529","streetKey":"W. Jerome Ave.","email":[],"phone":"","mobile":"","work":"","status":"Owner","balance":"350.0000"},{"id":"100102529WD","owner":"Shirley Driscoll","address":"2529 W. Jerome Ave.","unit":"D","num":"2529","streetKey":"W. Jerome Ave.","email":["sdriscoll2011@yahoo.com"],"phone":"","mobile":"7734026910","work":"7734651220","status":"Owner","balance":"0.0000"},{"id":"100102534WA","owner":"Gebremichel Girmai","address":"2534 W. Jerome Ave.","unit":"A","num":"2534","streetKey":"W. Jerome Ave.","email":["GGMichaelRN97@yahoo.com","GMichaelRN97@gmail.com"],"phone":"","mobile":"7735934918","work":"7739529700","status":"Owner","balance":"25.0000"},{"id":"100102534WB","owner":"Melake Tesfamichael","address":"2534 W. Jerome Ave.","unit":"B","num":"2534","streetKey":"W. Jerome Ave.","email":["melake.t90@gmail.com"],"phone":"7737695500","mobile":"7737694341","work":"","status":"Owner","balance":"0.0000"},{"id":"100102534WC","owner":"Matthew Canon","address":"2534 W. Jerome Ave.","unit":"C","num":"2534","streetKey":"W. Jerome Ave.","email":["mattacanon@gmail.com"],"phone":"","mobile":"8478483092","work":"","status":"Owner","balance":"0.0000"},{"id":"100102534WD","owner":"Dany Wen","address":"2534 W. Jerome Ave.","unit":"D","num":"2534","streetKey":"W. Jerome Ave.","email":["dannywen65@gmail.com"],"phone":"","mobile":"7739960012","work":"8472668880","status":"Owner","balance":"0.0000"},{"id":"100102535WA","owner":"Mary Bunmi","address":"2535 W. Jerome","unit":"A","num":"2535","streetKey":"W. Jerome Ave.","email":["Iolorunsola@gmail.com"],"phone":"3124801935","mobile":"3127813678","work":"","status":"Owner","balance":"0.0000"},{"id":"100102535WB","owner":"Akintomiwa Ajibade","address":"2535 W. Jerome Ave.","unit":"B","num":"2535","streetKey":"W. Jerome Ave.","email":["olatomi2@yahoo.com"],"phone":"","mobile":"7735019887","work":"","status":"Owner","balance":"0.0000"},{"id":"100102535WC","owner":"Evelyn Ramos","address":"2535 W. Jerome Ave.","unit":"C","num":"2535","streetKey":"W. Jerome Ave.","email":["ramosbonifacio@gmail.com"],"phone":"7738759425","mobile":"7738759425","work":"7738149528","status":"Owner","balance":"0.0000"},{"id":"100102535WD","owner":"Antonio Gubercinda","address":"2535 W. Jerome Ave.","unit":"D","num":"2535","streetKey":"W. Jerome Ave.","email":["abahantonio@yahoo.com","yantonio2010@gmail.com"],"phone":"","mobile":"","work":"7735773101","status":"Owner","balance":"0.0000"},{"id":"100102540WA","owner":"Kinka Shmael","address":"2540 W. Jerome Ave.","unit":"A","num":"2540","streetKey":"W. Jerome Ave.","email":["shmael4@comcast.net"],"phone":"","mobile":"","work":"","status":"Owner","balance":"-17.6800"},{"id":"100102540WB","owner":"Guadalupe Torres","address":"2540 W. Jerome Ave.","unit":"B","num":"2540","streetKey":"W. Jerome Ave.","email":["joanna2540@yahoo.com","jzapeda2540@gmail.com"],"phone":"7739837091","mobile":"7738656839","work":"7738166389","status":"Owner","balance":"0.0000"},{"id":"100102540WC","owner":"Getu Paulos Forsido","address":"2540 W. Jerome Ave.","unit":"C","num":"2540","streetKey":"W. Jerome Ave.","email":["Forsidogetu@gmail.com"],"phone":"7739615332","mobile":"7737960821","work":"","status":"Owner","balance":"0.0000"},{"id":"100102540WD","owner":"Thanh V. Quach","address":"2540 W. Jerome Ave.","unit":"D","num":"2540","streetKey":"W. Jerome Ave.","email":[],"phone":"7089737031","mobile":"7739461482","work":"7732755666","status":"Owner","balance":"0.0000"},{"id":"100102541WA","owner":"Keshar M Tamrakar","address":"2541 W. Jerome Ave.","unit":"A","num":"2541","streetKey":"W. Jerome Ave.","email":["kmtamrakar@yahoo.com"],"phone":"","mobile":"7737331492","work":"7739711483","status":"Owner","balance":"0.0000"},{"id":"100102541WB","owner":"Ellen Ramirez","address":"2541 W. Jerome Ave.","unit":"B","num":"2541","streetKey":"W. Jerome Ave.","email":["lometon@aol.com"],"phone":"","mobile":"7737431126","work":"7735515981","status":"Owner","balance":"0.0000"},{"id":"100102541WC","owner":"James Arrigoni","address":"2541 W. Jerome Ave.","unit":"C","num":"2541","streetKey":"W. Jerome Ave.","email":["cassnjim@sbcglobal.net","jimarrigoni@gmail.com"],"phone":"7733322372","mobile":"7733322373","work":"","status":"Owner","balance":"0.0000"},{"id":"100102541WD","owner":"Donald S. Dorfman","address":"2541 W. Jerome Ave.","unit":"D","num":"2541","streetKey":"W. Jerome Ave.","email":["dondi60645@att.net"],"phone":"7732743695","mobile":"7732743695","work":"8477383888","status":"Owner","balance":"0.0000"},{"id":"100102546WA","owner":"Henry Ly","address":"2546 W. Jerome Ave.","unit":"A","num":"2546","streetKey":"W. Jerome Ave.","email":[],"phone":"","mobile":"","work":"","status":"Owner","balance":"350.0000"},{"id":"100102546WB","owner":"Relucio,London,Elnora, Jack","address":"2546 W. Jerome Ave.","unit":"B","num":"2546","streetKey":"W. Jerome Ave.","email":[],"phone":"","mobile":"","work":"7736852407","status":"Owner","balance":"350.0000"},{"id":"100102546WC","owner":"Laura Wald","address":"2546 W. Jerome Ave.","unit":"C","num":"2546","streetKey":"W. Jerome Ave.","email":["jackwald1@gmail.com","waldlaura@gmail.com"],"phone":"","mobile":"7734288199","work":"","status":"Owner","balance":"0.0000"},{"id":"100102546WD","owner":"Jose Paz Perez","address":"2546 W. Jerome Ave.","unit":"D","num":"2546","streetKey":"W. Jerome Ave.","email":[],"phone":"","mobile":"","work":"","status":"Owner","balance":"910.7700"},{"id":"100102547WA","owner":"Ellen Ramirez","address":"2547 W. Jerome Ave.","unit":"A","num":"2547","streetKey":"W. Jerome Ave.","email":["lometon@aol.com"],"phone":"7735515981","mobile":"7737431126","work":"7735515981","status":"Owner","balance":"0.0000"},{"id":"100102547WB","owner":"Raval Bhanu","address":"2547 W. Jerome Ave.","unit":"B","num":"2547","streetKey":"W. Jerome Ave.","email":["ajayraval1@yahoo.com"],"phone":"8473314704","mobile":"","work":"","status":"Owner","balance":"375.0000"},{"id":"100102547WC","owner":"Gebrekristos Solomon","address":"2547 W. Jerome Ave.","unit":"C","num":"2547","streetKey":"W. Jerome Ave.","email":["solomongkristos@yahoo.com"],"phone":"7732557449","mobile":"7732557449","work":"7732557449","status":"Owner","balance":"0.0000"},{"id":"100102547WD","owner":"Marie Bondel","address":"2547 W Jerome Ave","unit":"D","num":"2547","streetKey":"W. Jerome Ave.","email":[],"phone":"","mobile":"","work":"","status":"Owner","balance":"0.0000"}];
+
+/* ====================== STATE ====================== */
+var DB=null, VIOLATIONS=[], META={}, objUrls=[];
+var CATEGORIES=["Trash / recycling","Parking","Exterior maintenance","Landscaping / snow",
+  "Architectural change","Noise / nuisance","Pets","Common-area storage / clutter","Signage","Other"];
+var ACTIVE=["Open","Notice Sent","Hearing","Fined"]; // counts as "open"
+
+/* ====================== INDEXEDDB ====================== */
+function openDB(){
+  return new Promise(function(res,rej){
+    var r=indexedDB.open("BirchwoodVT",1);
+    r.onupgradeneeded=function(e){
+      var db=e.target.result;
+      if(!db.objectStoreNames.contains("violations")) db.createObjectStore("violations",{keyPath:"vid"});
+      if(!db.objectStoreNames.contains("photos")) db.createObjectStore("photos",{keyPath:"pid"});
+      if(!db.objectStoreNames.contains("meta")) db.createObjectStore("meta",{keyPath:"k"});
+    };
+    r.onsuccess=function(e){res(e.target.result)};
+    r.onerror=function(e){rej(e.target.error)};
+  });
+}
+function tx(store,mode){return DB.transaction(store,mode).objectStore(store);}
+function putRec(store,val){return new Promise(function(res,rej){var rq=tx(store,"readwrite").put(val);rq.onsuccess=function(){res(val)};rq.onerror=function(e){rej(e.target.error)};});}
+function getRec(store,key){return new Promise(function(res,rej){var rq=tx(store,"readonly").get(key);rq.onsuccess=function(){res(rq.result)};rq.onerror=function(e){rej(e.target.error)};});}
+function delRec(store,key){return new Promise(function(res,rej){var rq=tx(store,"readwrite").delete(key);rq.onsuccess=function(){res()};rq.onerror=function(e){rej(e.target.error)};});}
+function allRecs(store){return new Promise(function(res,rej){var out=[],rq=tx(store,"readonly").openCursor();rq.onsuccess=function(e){var c=e.target.result;if(c){out.push(c.value);c.continue();}else res(out);};rq.onerror=function(e){rej(e.target.error)};});}
+
+/* ====================== HELPERS ====================== */
+function uid(){return (crypto.randomUUID?crypto.randomUUID():("id"+Date.now()+Math.random().toString(36).slice(2)));}
+function unitById(id){for(var i=0;i<EMBEDDED_UNITS.length;i++)if(EMBEDDED_UNITS[i].id===id)return EMBEDDED_UNITS[i];return null;}
+function unitLabel(u){return u.address+(u.unit?(" Unit "+u.unit):"");}
+function todayISO(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function fmtDate(iso){if(!iso)return "";var p=iso.split("-");if(p.length!==3)return iso;var m=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];return m[+p[1]-1]+" "+(+p[2])+", "+p[0];}
+function fmtLong(iso){if(!iso)return "";var p=iso.split("-");var m=["January","February","March","April","May","June","July","August","September","October","November","December"];return m[+p[1]-1]+" "+(+p[2])+", "+p[0];}
+function addDays(iso,n){var p=iso.split("-");var d=new Date(+p[0],+p[1]-1,+p[2]);d.setDate(d.getDate()+n);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function esc(s){return (s==null?"":String(s)).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function vForUnit(id){return VIOLATIONS.filter(function(v){return v.unitId===id;});}
+function openCount(id){return vForUnit(id).filter(function(v){return ACTIVE.indexOf(v.status)>=0;}).length;}
+function toast(msg){var t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove("show");},2200);}
+function pillClass(s){return ({"Open":"open","Notice Sent":"sent","Cured":"cured","Closed":"closed","Hearing":"hearing","Fined":"fined"})[s]||"open";}
+function clearObjUrls(){objUrls.forEach(function(u){URL.revokeObjectURL(u);});objUrls=[];}
+function blobUrl(b){var u=URL.createObjectURL(b);objUrls.push(u);return u;}
+
+/* ====================== INIT ====================== */
+(async function init(){
+  try{ DB=await openDB(); }catch(e){ alert("This tool needs browser storage (IndexedDB). Open it from a hosted https:// address (e.g. GitHub Pages) or add it to your Home Screen."); return; }
+  VIOLATIONS=await allRecs("violations");
+  var m=await allRecs("meta"); META={}; m.forEach(function(r){META[r.k]=r.v;});
+  if(META.manager===undefined) META.manager="";
+  if(META.cureDays===undefined) META.cureDays="14";
+  if(META.phone===undefined) META.phone="(847) 759-1610 ext. 410";
+  if(META.syncUrl===undefined) META.syncUrl="";
+  buildCatFilter();
+  renderUnits(); renderSheet();
+  wire();
+})();
+
+function wire(){
+  document.querySelectorAll(".tabs button").forEach(function(b){
+    b.addEventListener("click",function(){
+      document.querySelectorAll(".tabs button").forEach(function(x){x.classList.remove("on");});
+      b.classList.add("on");
+      var t=b.dataset.tab;
+      document.getElementById("view-units").classList.toggle("hidden",t!=="units");
+      document.getElementById("view-sheet").classList.toggle("hidden",t!=="sheet");
+    });
+  });
+  document.getElementById("unitSearch").addEventListener("input",renderUnits);
+  document.getElementById("unitFilter").addEventListener("change",renderUnits);
+  document.getElementById("vSearch").addEventListener("input",renderSheet);
+  document.getElementById("vStatus").addEventListener("change",renderSheet);
+  document.getElementById("vCat").addEventListener("change",renderSheet);
+  document.getElementById("navSettings").addEventListener("click",openSettings);
+  document.getElementById("exportXlsx").addEventListener("click",exportExcel);
+  document.getElementById("exportZip").addEventListener("click",exportPhotosZip);
+  document.getElementById("scrim").addEventListener("click",function(e){if(e.target.id==="scrim")closeSheet();});
+  document.getElementById("noticeBack").addEventListener("click",function(){document.getElementById("noticeOverlay").classList.remove("show");clearObjUrls();});
+  document.getElementById("noticePrint").addEventListener("click",function(){window.print();});
+}
+
+/* ====================== RENDER: UNITS ====================== */
+function buildCatFilter(){
+  var sel=document.getElementById("vCat");
+  CATEGORIES.forEach(function(c){var o=document.createElement("option");o.textContent=c;sel.appendChild(o);});
+}
+function renderUnits(){
+  var q=(document.getElementById("unitSearch").value||"").toLowerCase().trim();
+  var filt=document.getElementById("unitFilter").value;
+  // stats
+  var totalOpen=VIOLATIONS.filter(function(v){return ACTIVE.indexOf(v.status)>=0;}).length;
+  var fined=VIOLATIONS.filter(function(v){return v.status==="Fined";}).length;
+  var unitsWith=EMBEDDED_UNITS.filter(function(u){return openCount(u.id)>0;}).length;
+  document.getElementById("statRow").innerHTML=
+    stat(EMBEDDED_UNITS.length,"Units","")+stat(totalOpen,"Open violations","open")+stat(unitsWith,"Units flagged","")+stat(fined,"At fine stage","alert");
+  var list=EMBEDDED_UNITS.filter(function(u){
+    if(q && (unitLabel(u).toLowerCase().indexOf(q)<0 && u.owner.toLowerCase().indexOf(q)<0))return false;
+    var oc=openCount(u.id);
+    if(filt==="open"&&oc===0)return false;
+    if(filt==="clean"&&oc>0)return false;
+    return true;
+  });
+  var groups={};
+  list.forEach(function(u){(groups[u.streetKey]=groups[u.streetKey]||[]).push(u);});
+  var order=["W. Birchwood Ave.","W. Jerome Ave.","W. Howard St.","N. Rockwell Ave.","N. Maplewood Ave."];
+  var keys=order.filter(function(k){return groups[k];}).concat(Object.keys(groups).filter(function(k){return order.indexOf(k)<0;}));
+  var html="";
+  if(!list.length){html=emptyState("No matching units","Try a different search or filter.");}
+  keys.forEach(function(k){
+    html+='<div class="street-head"><h2>'+esc(k)+'</h2><span class="count">'+groups[k].length+' units</span></div><div class="tile-grid">';
+    groups[k].forEach(function(u){
+      var oc=openCount(u.id); var fined=vForUnit(u.id).some(function(v){return v.status==="Fined";});
+      var cls=oc>0?(fined?"s-alert":"s-open"):(vForUnit(u.id).length?"s-clear":"");
+      html+='<button class="tile '+cls+'" data-unit="'+esc(u.id)+'">'+
+        '<span class="spine"></span>'+
+        (oc>0?'<span class="badge'+(fined?' alert':'')+'">'+oc+'</span>':'')+
+        '<div class="addr">'+esc(u.num||u.address)+(u.unit?'<span class="u">'+esc(u.unit)+'</span>':'')+'</div>'+
+        '<div class="own">'+esc(u.owner||"—")+'</div>'+
+      '</button>';
+    });
+    html+='</div>';
+  });
+  var body=document.getElementById("rosterBody");
+  body.innerHTML=html;
+  body.querySelectorAll(".tile").forEach(function(t){t.addEventListener("click",function(){openUnit(t.dataset.unit);});});
+}
+function stat(n,l,cls){return '<div class="stat '+cls+'"><div class="n">'+n+'</div><div class="l">'+esc(l)+'</div></div>';}
+function emptyState(h,p){return '<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><h3>'+esc(h)+'</h3><p>'+esc(p)+'</p></div>';}
+
+/* ====================== RENDER: SHEET ====================== */
+function renderSheet(){
+  var q=(document.getElementById("vSearch").value||"").toLowerCase().trim();
+  var fs=document.getElementById("vStatus").value, fc=document.getElementById("vCat").value;
+  var rows=VIOLATIONS.slice().sort(function(a,b){return (b.dateObserved||"").localeCompare(a.dateObserved||"")||(b.createdAt||"").localeCompare(a.createdAt||"");});
+  rows=rows.filter(function(v){
+    var u=unitById(v.unitId)||{};
+    if(fs!=="all"&&v.status!==fs)return false;
+    if(fc!=="all"&&v.category!==fc)return false;
+    if(q){var hay=(unitLabel(u)+" "+(u.owner||"")+" "+v.category+" "+(v.description||"")).toLowerCase();if(hay.indexOf(q)<0)return false;}
+    return true;
+  });
+  var body=document.getElementById("sheetBody");
+  if(!rows.length){body.innerHTML=emptyVio();return;}
+  body.innerHTML=rows.map(function(v){
+    var u=unitById(v.unitId)||{address:"(unknown)"};
+    return '<button class="vcard" data-v="'+esc(v.vid)+'">'+
+      '<div class="top"><div><div class="addr">'+esc(unitLabel(u))+'</div><div class="cat">'+esc(v.category)+'</div></div>'+
+      '<span class="pill '+pillClass(v.status)+'">'+esc(v.status)+'</span></div>'+
+      '<div class="meta"><span class="date">'+esc(fmtDate(v.dateObserved))+'</span>'+
+      '<span class="pill sev-'+esc(v.severity)+'">'+esc(v.severity)+'</span>'+
+      (v.noticeStage&&v.noticeStage!=="None"?'<span class="pill sent">'+esc(v.noticeStage)+' notice</span>':'')+
+      ((v.photos&&v.photos.length)?'<span class="ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>'+v.photos.length+'</span>':'')+
+      '</div></button>';
+  }).join("");
+  body.querySelectorAll(".vcard").forEach(function(c){c.addEventListener("click",function(){openViolation(c.dataset.v);});});
+}
+function emptyVio(){return '<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg><h3>No violations logged yet</h3><p>Open a unit and tap “Log violation” to start.</p></div>';}
+
+/* ====================== MODAL ====================== */
+function openSheet(html){document.getElementById("sheetModal").innerHTML='<div class="grab"></div>'+html;document.getElementById("scrim").classList.add("show");}
+function closeSheet(){document.getElementById("scrim").classList.remove("show");}
+
+/* ---- unit detail ---- */
+function openUnit(id){
+  var u=unitById(id); if(!u)return;
+  var vs=vForUnit(id).sort(function(a,b){return (b.dateObserved||"").localeCompare(a.dateObserved||"");});
+  var contacts="";
+  if(u.mobile||u.phone){var ph=u.mobile||u.phone;contacts+='<a href="tel:'+esc(ph)+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Call</a>';}
+  if(u.email&&u.email.length){contacts+='<a href="mailto:'+esc(u.email[0])+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>Email</a>';}
+  var vlist=vs.length?vs.map(function(v){
+    return '<button class="vcard" data-v="'+esc(v.vid)+'" style="margin-bottom:8px"><div class="top"><div><div class="cat" style="font-weight:700;color:var(--ink)">'+esc(v.category)+'</div><div class="date">'+esc(fmtDate(v.dateObserved))+'</div></div><span class="pill '+pillClass(v.status)+'">'+esc(v.status)+'</span></div></button>';
+  }).join(""):'<p class="muted" style="font-size:13.5px">No violations on record for this unit.</p>';
+  openSheet(
+    '<h2>'+esc(unitLabel(u))+'</h2><div class="sub">Chicago, IL 60645 · Account '+esc(u.id)+'</div>'+
+    '<dl class="dl"><dt>Owner</dt><dd>'+esc(u.owner||"—")+'</dd>'+
+    '<dt>Status</dt><dd>'+esc(u.status||"—")+'</dd>'+
+    (u.balance&&parseFloat(u.balance)?'<dt>Balance</dt><dd>'+esc(u.balance)+'</dd>':'')+'</dl>'+
+    (contacts?'<div class="contact-row">'+contacts+'</div>':'')+
+    '<button class="btn signal block" id="logViol"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Log violation</button>'+
+    '<div class="divider"></div><p class="eyebrow">On record</p>'+vlist
+  );
+  document.getElementById("logViol").addEventListener("click",function(){openViolationForm(id,null);});
+  document.querySelectorAll("#sheetModal .vcard").forEach(function(c){c.addEventListener("click",function(){openViolation(c.dataset.v);});});
+}
+
+/* ---- new / edit violation form ---- */
+var pendingPhotos=[]; // {pid, blob, url}
+function openViolationForm(unitId,existing){
+  pendingPhotos=[];
+  var u=unitById(unitId);
+  var v=existing||{vid:null,category:CATEGORIES[0],severity:"Medium",dateObserved:todayISO(),description:"",photos:[]};
+  var catOpts=CATEGORIES.map(function(c){return '<option'+(c===v.category?' selected':'')+'>'+esc(c)+'</option>';}).join("");
+  openSheet(
+    '<h2>'+(existing?'Edit violation':'Log violation')+'</h2><div class="sub">'+esc(unitLabel(u))+' · '+esc(u.owner||"")+'</div>'+
+    '<div class="field"><label>Category</label><select id="fCat">'+catOpts+'</select></div>'+
+    '<div class="two"><div class="field"><label>Severity</label><select id="fSev"><option'+(v.severity==="Low"?" selected":"")+'>Low</option><option'+(v.severity==="Medium"?" selected":"")+'>Medium</option><option'+(v.severity==="High"?" selected":"")+'>High</option></select></div>'+
+    '<div class="field"><label>Date observed</label><input type="date" id="fDate" value="'+esc(v.dateObserved)+'"></div></div>'+
+    '<div class="field"><label>What you observed</label><textarea id="fDesc" placeholder="e.g. Refuse and recycling carts left at front of unit two days after pickup.">'+esc(v.description)+'</textarea></div>'+
+    '<label style="display:block;font-size:12.5px;font-weight:700;color:var(--ink-2);margin-bottom:5px">Photos</label>'+
+    '<div class="photo-actions">'+
+      '<button class="btn signal sm" id="takePhoto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Take photo</button>'+
+      '<button class="btn ghost sm" id="choosePhoto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>Library</button>'+
+    '</div>'+
+    '<input type="file" id="camIn" accept="image/*" capture="environment" multiple class="hidden">'+
+    '<input type="file" id="libIn" accept="image/*" multiple class="hidden">'+
+    '<div class="thumbs" id="thumbs"></div>'+
+    '<div class="divider"></div>'+
+    '<button class="btn block" id="saveViol">'+(existing?'Save changes':'Save violation')+'</button>'+
+    (existing?'<button class="btn danger block sm" id="delViol" style="margin-top:8px">Delete this violation</button>':'')
+  );
+  // preload existing photos as pending (so edit keeps them)
+  if(existing&&existing.photos){
+    existing.photos.forEach(function(pid){
+      getRec("photos",pid).then(function(p){if(p){pendingPhotos.push({pid:p.pid,blob:p.blob,url:blobUrl(p.blob),existing:true});renderThumbs();}});
+    });
+  }
+  document.getElementById("takePhoto").addEventListener("click",function(){document.getElementById("camIn").click();});
+  document.getElementById("choosePhoto").addEventListener("click",function(){document.getElementById("libIn").click();});
+  document.getElementById("camIn").addEventListener("change",handleFiles);
+  document.getElementById("libIn").addEventListener("change",handleFiles);
+  document.getElementById("saveViol").addEventListener("click",function(){saveViolation(unitId,existing);});
+  if(existing){document.getElementById("delViol").addEventListener("click",function(){deleteViolation(existing.vid);});}
+}
+function handleFiles(e){
+  var files=Array.prototype.slice.call(e.target.files||[]);
+  files.forEach(function(f){
+    if(!f.type||f.type.indexOf("image")<0)return;
+    pendingPhotos.push({pid:uid(),blob:f,url:blobUrl(f)});
+  });
+  e.target.value="";
+  renderThumbs();
+}
+function renderThumbs(){
+  var c=document.getElementById("thumbs");if(!c)return;
+  c.innerHTML=pendingPhotos.map(function(p,i){
+    return '<div class="thumb"><img src="'+p.url+'"><button data-i="'+i+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>';
+  }).join("");
+  c.querySelectorAll("button").forEach(function(b){b.addEventListener("click",function(){pendingPhotos.splice(+b.dataset.i,1);renderThumbs();});});
+}
+async function saveViolation(unitId,existing){
+  var category=document.getElementById("fCat").value;
+  var severity=document.getElementById("fSev").value;
+  var dateObserved=document.getElementById("fDate").value||todayISO();
+  var description=document.getElementById("fDesc").value.trim();
+  var vid=existing?existing.vid:uid();
+  // persist photos
+  var photoIds=[];
+  for(var i=0;i<pendingPhotos.length;i++){
+    var p=pendingPhotos[i];
+    if(!p.existing){await putRec("photos",{pid:p.pid,vid:vid,unitId:unitId,blob:p.blob,takenAt:new Date().toISOString()});}
+    photoIds.push(p.pid);
+  }
+  // remove photos that were dropped during edit
+  if(existing&&existing.photos){
+    for(var j=0;j<existing.photos.length;j++){if(photoIds.indexOf(existing.photos[j])<0){await delRec("photos",existing.photos[j]);}}
+  }
+  var rec={
+    vid:vid,unitId:unitId,category:category,severity:severity,dateObserved:dateObserved,
+    description:description,photos:photoIds,
+    status:existing?existing.status:"Open",
+    noticeStage:existing?existing.noticeStage:"None",
+    log:existing?existing.log:[{t:new Date().toISOString(),m:"Violation logged"}],
+    createdAt:existing?existing.createdAt:new Date().toISOString(),
+    updatedAt:new Date().toISOString()
+  };
+  await putRec("violations",rec);
+  var idx=VIOLATIONS.findIndex(function(x){return x.vid===vid;});
+  if(idx>=0)VIOLATIONS[idx]=rec;else VIOLATIONS.push(rec);
+  closeSheet();renderUnits();renderSheet();
+  toast(existing?"Violation updated":"Violation saved");
+}
+async function deleteViolation(vid){
+  if(!confirm("Delete this violation and its photos? This cannot be undone."))return;
+  var v=VIOLATIONS.find(function(x){return x.vid===vid;});
+  if(v&&v.photos){for(var i=0;i<v.photos.length;i++)await delRec("photos",v.photos[i]);}
+  await delRec("violations",vid);
+  VIOLATIONS=VIOLATIONS.filter(function(x){return x.vid!==vid;});
+  closeSheet();renderUnits();renderSheet();toast("Violation deleted");
+}
+
+/* ---- violation detail ---- */
+async function openViolation(vid){
+  var v=VIOLATIONS.find(function(x){return x.vid===vid;});if(!v)return;
+  var u=unitById(v.unitId)||{};
+  clearObjUrls();
+  var thumbs="";
+  for(var i=0;i<(v.photos||[]).length;i++){var p=await getRec("photos",v.photos[i]);if(p)thumbs+='<div class="thumb"><img src="'+blobUrl(p.blob)+'"></div>';}
+  var statusOpts=["Open","Notice Sent","Cured","Hearing","Fined","Closed"].map(function(s){return '<option'+(s===v.status?' selected':'')+'>'+s+'</option>';}).join("");
+  openSheet(
+    '<h2>'+esc(v.category)+'</h2><div class="sub">'+esc(unitLabel(u))+' · '+esc(u.owner||"")+'</div>'+
+    '<div class="row" style="gap:6px;margin-bottom:10px"><span class="pill '+pillClass(v.status)+'">'+esc(v.status)+'</span><span class="pill sev-'+esc(v.severity)+'">'+esc(v.severity)+'</span>'+(v.noticeStage&&v.noticeStage!=="None"?'<span class="pill sent">'+esc(v.noticeStage)+' notice</span>':'')+'</div>'+
+    '<dl class="dl"><dt>Observed</dt><dd>'+esc(fmtDate(v.dateObserved))+'</dd></dl>'+
+    (v.description?'<p style="font-size:14px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 13px">'+esc(v.description)+'</p>':'')+
+    (thumbs?'<div class="thumbs" style="margin-top:10px">'+thumbs+'</div>':'')+
+    '<div class="divider"></div>'+
+    '<div class="field"><label>Update status</label><select id="vStatusSel">'+statusOpts+'</select></div>'+
+    '<button class="btn signal block" id="genNotice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>Create violation notice</button>'+
+    '<button class="btn ghost block sm" id="editViol" style="margin-top:8px">Edit violation</button>'
+  );
+  document.getElementById("vStatusSel").addEventListener("change",async function(){
+    v.status=this.value;v.updatedAt=new Date().toISOString();v.log=v.log||[];v.log.push({t:v.updatedAt,m:"Status → "+v.status});
+    await putRec("violations",v);renderUnits();renderSheet();toast("Status updated");
+  });
+  document.getElementById("genNotice").addEventListener("click",function(){openNoticeConfig(v);});
+  document.getElementById("editViol").addEventListener("click",function(){openViolationForm(v.unitId,v);});
+}
+
+/* ====================== NOTICE ====================== */
+function openNoticeConfig(v){
+  var u=unitById(v.unitId)||{};
+  var cure=META.cureDays||"14";
+  openSheet(
+    '<h2>Notice details</h2><div class="sub">'+esc(unitLabel(u))+'</div>'+
+    '<div class="field"><label>Notice stage</label><select id="nStage"><option>Courtesy</option><option>Second</option><option>Final</option></select></div>'+
+    '<div class="two"><div class="field"><label>Days to cure</label><input type="number" id="nCure" value="'+esc(cure)+'" min="1"></div>'+
+    '<div class="field"><label>Notice date</label><input type="date" id="nDate" value="'+todayISO()+'"></div></div>'+
+    '<div class="field"><label>Governing reference <span class="muted" style="font-weight:500">(optional)</span></label><input id="nRef" placeholder="e.g. Declaration Art. VI; Rules &amp; Regs §3" value="'+esc(META.lastRef||"")+'"></div>'+
+    '<div class="field"><label>Signed by</label><input id="nMgr" placeholder="Your name" value="'+esc(META.manager||"")+'"></div>'+
+    '<button class="btn signal block" id="buildNotice">Preview notice</button>'+
+    '<p class="muted" style="font-size:12px;margin-top:10px">Template only. Confirm cure periods, fine schedule, and hearing rights against the Birchwood governing documents before sending.</p>'
+  );
+  document.getElementById("buildNotice").addEventListener("click",async function(){
+    META.manager=document.getElementById("nMgr").value;
+    META.lastRef=document.getElementById("nRef").value;
+    await putRec("meta",{k:"manager",v:META.manager});
+    await putRec("meta",{k:"lastRef",v:META.lastRef});
+    var cfg={
+      stage:document.getElementById("nStage").value,
+      cure:document.getElementById("nCure").value||"14",
+      date:document.getElementById("nDate").value||todayISO(),
+      ref:META.lastRef,mgr:META.manager
+    };
+    await buildNotice(v,cfg);
+  });
+}
+async function buildNotice(v,cfg){
+  var u=unitById(v.unitId)||{};
+  var cureBy=fmtLong(addDays(cfg.date,parseInt(cfg.cure,10)||14));
+  var greeting=u.owner?("Dear "+u.owner+":"):"Dear Owner / Resident:";
+  var stagePara={
+    "Courtesy":"As a courtesy, we are bringing this matter to your attention and respectfully ask that the condition be corrected within "+cfg.cure+" days of the date of this notice.",
+    "Second":"This is a second notice. Our records indicate the condition previously identified has not been corrected. Please correct it within "+cfg.cure+" days of the date of this notice to avoid further action.",
+    "Final":"This is a final notice. If the condition is not corrected within "+cfg.cure+" days of the date of this notice, the matter will be referred to the Board of Directors, which may levy fines in accordance with the schedule adopted by the Board and pursue any other remedy available under the governing documents and applicable Illinois law."
+  }[cfg.stage];
+  // photos
+  var imgs="";
+  for(var i=0;i<(v.photos||[]).length;i++){
+    var p=await getRec("photos",v.photos[i]);
+    if(p){var b64=await blobToDataURL(p.blob);imgs+='<div><img src="'+b64+'"><div class="cap">Observed '+esc(fmtDate(v.dateObserved))+'</div></div>';}
+  }
+  var html=
+    '<div class="notice-page">'+
+      '<div class="lh"><div class="assoc">Birchwood Townhouse Association</div>'+
+      '<div class="agent">c/o Krono Property Management, managing agent<br>960 Rand Road, Suite 211, Des Plaines, IL 60016 · '+esc(META.phone||"")+'</div></div>'+
+      '<p class="date">'+esc(fmtLong(cfg.date))+'</p>'+
+      '<p class="to">'+esc(u.owner||"Owner / Resident")+'<br>'+esc(u.address||"")+(u.unit?(" Unit "+esc(u.unit)):"")+'<br>Chicago, IL 60645</p>'+
+      '<p class="re">Re: Notice of Covenant / Rule Violation — '+esc(unitLabel(u))+'</p>'+
+      '<p>'+esc(greeting)+'</p>'+
+      '<p>The Birchwood Townhouse Association, through its managing agent, has observed a condition at the above address that does not conform to the Declaration and Bylaws of the Association and the Rules and Regulations adopted by the Board of Directors.</p>'+
+      '<div class="vbox"><b>Violation:</b> '+esc(v.category)+'<br><b>Date observed:</b> '+esc(fmtLong(v.dateObserved))+
+        (v.description?'<br><b>Details:</b> '+esc(v.description):'')+
+        (cfg.ref?'<br><b>Reference:</b> '+esc(cfg.ref):'')+'</div>'+
+      '<p>'+esc(stagePara)+'</p>'+
+      '<p><b>Right to be heard.</b> Before any fine is imposed, you are entitled to written notice and an opportunity to be heard before the Board of Directors. To request a hearing, contact the managing agent at the address above.</p>'+
+      '<p>Please correct the condition described above on or before <b>'+esc(cureBy)+'</b>.'+(imgs?' Photographs documenting the condition are included for your reference.':'')+' If the condition has already been corrected, please disregard this notice and accept our thanks.</p>'+
+      '<p>Thank you for your cooperation in maintaining the standards of the Birchwood community.</p>'+
+      '<div class="sig">Sincerely,<br><br><span class="nm">'+esc(cfg.mgr||"Krono Property Management")+'</span><br>Managing Agent for the Board of Directors<br>Birchwood Townhouse Association</div>'+
+      (imgs?'<div class="photos-print"><h4>Documentation</h4><div class="pg">'+imgs+'</div></div>':'')+
+    '</div>';
+  document.getElementById("noticeContent").innerHTML=html;
+  document.getElementById("noticeOverlay").classList.add("show");
+  closeSheet();
+  // offer to record that a notice was generated
+  v.noticeStage=cfg.stage;
+  if(v.status==="Open")v.status="Notice Sent";
+  v.updatedAt=new Date().toISOString();v.log=v.log||[];v.log.push({t:v.updatedAt,m:cfg.stage+" notice generated"});
+  await putRec("violations",v);renderUnits();renderSheet();
+}
+function blobToDataURL(blob){return new Promise(function(res){var r=new FileReader();r.onload=function(){res(r.result);};r.readAsDataURL(blob);});}
+
+/* ====================== SETTINGS ====================== */
+function openSettings(){
+  openSheet(
+    '<h2>Settings &amp; data</h2><div class="sub">Defaults, backup, and cloud sync</div>'+
+    '<div class="field"><label>Default signer name</label><input id="setMgr" value="'+esc(META.manager||"")+'"></div>'+
+    '<div class="field"><label>Managing agent phone</label><input id="setPhone" value="'+esc(META.phone||"")+'"></div>'+
+    '<div class="field"><label>Default days to cure</label><input type="number" id="setCure" value="'+esc(META.cureDays||"14")+'" min="1"></div>'+
+    '<button class="btn block sm" id="saveSet">Save defaults</button>'+
+    '<div class="divider"></div>'+
+    '<p class="eyebrow">Backup</p>'+
+    '<p class="muted" style="font-size:12.5px;margin:0 0 10px">Photos are stored on this device. Export a backup regularly, or connect Google sync below so nothing is lost.</p>'+
+    '<button class="btn ghost block sm" id="backupBtn">Download full backup (.json)</button>'+
+    '<button class="btn ghost block sm" id="restoreBtn" style="margin-top:8px">Restore from backup</button>'+
+    '<input type="file" id="restoreIn" accept="application/json,.json" class="hidden">'+
+    '<div class="divider"></div>'+
+    '<p class="eyebrow">Google sync (optional)</p>'+
+    '<p class="muted" style="font-size:12.5px;margin:0 0 10px">Paste the Web App URL from your Apps Script deployment to push violations to a Google Sheet and photos to Drive.</p>'+
+    '<div class="field"><label>Apps Script Web App URL</label><input id="setSync" placeholder="https://script.google.com/macros/s/…/exec" value="'+esc(META.syncUrl||"")+'"></div>'+
+    '<button class="btn block sm" id="syncBtn">Sync now</button>'
+  );
+  document.getElementById("saveSet").addEventListener("click",async function(){
+    META.manager=document.getElementById("setMgr").value;
+    META.phone=document.getElementById("setPhone").value;
+    META.cureDays=document.getElementById("setCure").value||"14";
+    await putRec("meta",{k:"manager",v:META.manager});
+    await putRec("meta",{k:"phone",v:META.phone});
+    await putRec("meta",{k:"cureDays",v:META.cureDays});
+    toast("Defaults saved");
+  });
+  document.getElementById("backupBtn").addEventListener("click",doBackup);
+  document.getElementById("restoreBtn").addEventListener("click",function(){document.getElementById("restoreIn").click();});
+  document.getElementById("restoreIn").addEventListener("change",doRestore);
+  document.getElementById("syncBtn").addEventListener("click",async function(){
+    META.syncUrl=document.getElementById("setSync").value.trim();
+    await putRec("meta",{k:"syncUrl",v:META.syncUrl});
+    doSync();
+  });
+}
+async function doBackup(){
+  var photos=await allRecs("photos");
+  var pserial=[];
+  for(var i=0;i<photos.length;i++){pserial.push({pid:photos[i].pid,vid:photos[i].vid,unitId:photos[i].unitId,takenAt:photos[i].takenAt,data:await blobToDataURL(photos[i].blob)});}
+  var payload={app:"BirchwoodVT",exportedAt:new Date().toISOString(),violations:VIOLATIONS,photos:pserial,meta:META};
+  download(new Blob([JSON.stringify(payload)],{type:"application/json"}),"birchwood-violations-backup-"+todayISO()+".json");
+  toast("Backup downloaded");
+}
+async function doRestore(e){
+  var f=e.target.files[0];if(!f)return;
+  try{
+    var data=JSON.parse(await f.text());
+    if(!data.violations)throw new Error("bad file");
+    if(!confirm("Restore "+data.violations.length+" violations and "+(data.photos?data.photos.length:0)+" photos? Existing records with the same IDs will be overwritten."))return;
+    for(var i=0;i<data.violations.length;i++)await putRec("violations",data.violations[i]);
+    if(data.photos){for(var j=0;j<data.photos.length;j++){var p=data.photos[j];var blob=await (await fetch(p.data)).blob();await putRec("photos",{pid:p.pid,vid:p.vid,unitId:p.unitId,blob:blob,takenAt:p.takenAt});}}
+    VIOLATIONS=await allRecs("violations");
+    closeSheet();renderUnits();renderSheet();toast("Backup restored");
+  }catch(err){alert("Could not read that backup file.");}
+  e.target.value="";
+}
+
+/* ====================== EXPORT EXCEL / ZIP ====================== */
+function loadScript(src){return new Promise(function(res,rej){if(window.__loaded&&window.__loaded[src])return res();var s=document.createElement("script");s.src=src;s.onload=function(){window.__loaded=window.__loaded||{};window.__loaded[src]=1;res();};s.onerror=function(){rej(new Error("load fail"));};document.head.appendChild(s);});}
+async function exportExcel(){
+  if(!VIOLATIONS.length){toast("No violations to export");return;}
+  try{await loadScript("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");}
+  catch(e){toast("Need internet to build the Excel file");return;}
+  var head=["Date observed","Account","Address","Unit","Owner","Email","Category","Severity","Status","Notice stage","Description","Photos","Logged","Last updated"];
+  var aoa=[head];
+  VIOLATIONS.slice().sort(function(a,b){return (b.dateObserved||"").localeCompare(a.dateObserved||"");}).forEach(function(v){
+    var u=unitById(v.unitId)||{};
+    aoa.push([v.dateObserved,u.id||"",u.address||"",u.unit||"",u.owner||"",(u.email&&u.email[0])||"",v.category,v.severity,v.status,v.noticeStage,v.description||"",(v.photos||[]).length,(v.createdAt||"").slice(0,10),(v.updatedAt||"").slice(0,10)]);
+  });
+  var ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"]=[{wch:13},{wch:13},{wch:24},{wch:6},{wch:20},{wch:24},{wch:20},{wch:9},{wch:12},{wch:11},{wch:40},{wch:7},{wch:12},{wch:12}];
+  var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Violations");
+  XLSX.writeFile(wb,"birchwood-violations-"+todayISO()+".xlsx");
+  toast("Excel exported");
+}
+async function exportPhotosZip(){
+  var withPhotos=VIOLATIONS.filter(function(v){return v.photos&&v.photos.length;});
+  if(!withPhotos.length){toast("No photos to export");return;}
+  try{await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js");}
+  catch(e){toast("Need internet to build the ZIP");return;}
+  var zip=new JSZip();
+  for(var i=0;i<withPhotos.length;i++){
+    var v=withPhotos[i],u=unitById(v.unitId)||{};
+    var folder=((u.num||"unit")+(u.unit?"-"+u.unit:"")+" "+(u.owner||"")).replace(/[^\w\- ]/g,"").trim();
+    for(var k=0;k<v.photos.length;k++){
+      var p=await getRec("photos",v.photos[k]);if(!p)continue;
+      var ext=(p.blob.type&&p.blob.type.split("/")[1])||"jpg";
+      zip.folder(folder).file((v.category.replace(/[^\w]/g,"_"))+"_"+v.dateObserved+"_"+(k+1)+"."+ext,p.blob);
+    }
+  }
+  var blob=await zip.generateAsync({type:"blob"});
+  download(blob,"birchwood-photos-"+todayISO()+".zip");
+  toast("Photos ZIP exported");
+}
+function download(blob,name){var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},500);}
+
+/* ====================== GOOGLE SYNC ====================== */
+async function doSync(){
+  if(!META.syncUrl){toast("Add your Web App URL first");return;}
+  toast("Syncing…");
+  try{
+    var photos=await allRecs("photos");var pmap={};
+    for(var i=0;i<photos.length;i++){pmap[photos[i].pid]={vid:photos[i].vid,data:await blobToDataURL(photos[i].blob)};}
+    var payload={violations:VIOLATIONS.map(function(v){var u=unitById(v.unitId)||{};return {vid:v.vid,account:u.id,address:u.address,unit:u.unit,owner:u.owner,category:v.category,severity:v.severity,status:v.status,noticeStage:v.noticeStage,dateObserved:v.dateObserved,description:v.description,photoIds:v.photos};}),photos:pmap};
+    // Apps Script web apps don't return CORS headers, so use no-cors and verify in the Sheet.
+    await fetch(META.syncUrl,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});
+    toast("Sent to Google — open your Sheet to confirm");
+  }catch(e){toast("Sync failed — records are safe on this device");}
+}
+</script>
+</body>
+</html>
